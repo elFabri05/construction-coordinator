@@ -3,7 +3,9 @@
 Mobile-first app for coordinating work between multiple teams on a construction
 site. **Phase 1**: authentication, projects, membership & roles, and the
 server-side permission model. **Phase 2**: project guidelines and tasks with
-manual ordering. (Uploads and the AI layer come in later phases.)
+manual ordering. **Phase 3**: submissions — photo/comment evidence on tasks,
+stored in S3-compatible object storage with a mobile offline queue. (The AI
+layer comes in later phases.)
 
 ## Layout
 
@@ -52,6 +54,8 @@ Roles are **project-scoped** — the same user can be `owner` of one project and
 | Write guideline                  |   ✓   |     ✓     |        |
 | Create/edit/reorder/delete tasks |   ✓   |     ✓     |        |
 | Change a task's status           |   ✓   |     ✓     |   ✓    |
+| Create/view submissions          |   ✓   |     ✓     |   ✓    |
+| Delete a submission              |   ✓   |     ✓     | author only |
 
 Changing task status is the **one** write the `member` role has — it's how
 field teams report progress. The status route accepts only `{ status }`, so a
@@ -102,11 +106,40 @@ hides UI — it is never trusted for security.
 | PATCH  | `/projects/:id/tasks/:taskId`   | owner, superuser      |
 | PATCH  | `/projects/:id/tasks/:taskId/status` | any active membership |
 | DELETE | `/projects/:id/tasks/:taskId`   | owner, superuser      |
+| POST   | `.../:taskId/submissions/upload-url` | any active membership |
+| POST   | `.../:taskId/submissions`       | any active membership |
+| GET    | `.../:taskId/submissions`       | any active membership |
+| DELETE | `.../:taskId/submissions/:submissionId` | author or owner/superuser |
 
 The guideline is one evolving document per project (upserted in place);
 version history is deliberately deferred (likely Phase 5+). Task reorder takes
 `{ taskIds: [...] }` in the new order and renumbers atomically — if any id
 doesn't belong to the project, nothing changes.
+
+## Submissions & storage
+
+Photo bytes **never pass through the API**. The flow is:
+
+1. `POST .../submissions/upload-url` → `{ uploadUrl, objectKey }` (presigned
+   PUT, key namespaced `projects/:id/tasks/:taskId/<uuid>.jpg`)
+2. The mobile client compresses (1600px long edge, JPEG 0.7) + thumbnails
+   (400px) client-side and PUTs both directly to object storage
+3. `POST .../submissions { comment?, photoKey?, thumbnailKey? }` (at least one
+   of comment/photo required) confirms the record
+
+Only object keys are persisted; signed read URLs are generated per response.
+Submissions are **immutable** (corrections are new submissions) and deletion
+is **soft** (`deleted_at`) — both to keep the audit trail honest for the AI
+layer in later phases.
+
+Storage is any S3-compatible store behind `StorageService` — Cloudflare R2 by
+default (egress cost), AWS S3 or local MinIO via env vars only (`S3_*` in
+`.env.example`).
+
+The mobile app keeps a durable offline queue (AsyncStorage + copies of photos
+in the app's document dir): queued submissions show as "pending upload" in the
+feed instantly and sync on reconnect (netinfo). If the photo PUT succeeded but
+the record POST failed, the retry reuses the uploaded key and never re-uploads.
 
 Redis is provisioned in `docker-compose.yml` for later phases (queues); the API
 does not use it yet.

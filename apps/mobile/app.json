@@ -13,6 +13,15 @@
     "android": {
       "package": "com.construct.coordinator"
     },
-    "plugins": ["expo-secure-store"]
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow access to attach site photos to tasks.",
+          "cameraPermission": "Allow camera access to photograph work progress."
+        }
+      ]
+    ]
   }
 }

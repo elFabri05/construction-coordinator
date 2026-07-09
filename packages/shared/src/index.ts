@@ -30,6 +30,16 @@ export const TASK_TITLE_MAX_LENGTH = 200;
 // Guideline content and task descriptions — keeps payloads sane before the
 // AI processing phases start consuming this text.
 export const LONG_TEXT_MAX_LENGTH = 10000;
+export const SUBMISSION_COMMENT_MAX_LENGTH = 2000;
+
+export const UPLOAD_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export type UploadContentType = (typeof UPLOAD_CONTENT_TYPES)[number];
+
+// Client-side compression targets for submission photos.
+export const PHOTO_MAX_DIMENSION = 1600;
+export const PHOTO_JPEG_QUALITY = 0.7;
+export const THUMBNAIL_MAX_DIMENSION = 400;
+export const THUMBNAIL_JPEG_QUALITY = 0.5;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -97,6 +107,30 @@ export interface TaskDto {
   updatedAt: string;
 }
 
+/**
+ * Immutable once created (no update request shape exists on purpose —
+ * corrections are new submissions). photoUrl/thumbnailUrl are short-lived
+ * signed URLs generated per response; never persist them.
+ */
+export interface SubmissionDto {
+  id: string;
+  taskId: string;
+  projectId: string;
+  userId: string;
+  comment: string | null;
+  photoUrl: string | null;
+  thumbnailUrl: string | null;
+  createdAt: string;
+  user: Pick<UserDto, 'id' | 'email' | 'name'>;
+}
+
+export interface UploadUrlDto {
+  /** Presigned PUT URL — the client uploads directly to object storage. */
+  uploadUrl: string;
+  /** Key to reference in the subsequent create-submission call. */
+  objectKey: string;
+}
+
 // ---------------------------------------------------------------------------
 // Request bodies
 // ---------------------------------------------------------------------------
@@ -155,6 +189,19 @@ export interface UpdateTaskStatusRequest {
 export interface ReorderTasksRequest {
   /** Task ids in their new order (renumbered 1..n atomically). */
   taskIds: string[];
+}
+
+export interface RequestUploadUrlRequest {
+  /** Defaults to image/jpeg on the server. */
+  contentType?: UploadContentType;
+}
+
+/** At least one of comment / photoKey is required (validated server-side). */
+export interface CreateSubmissionRequest {
+  comment?: string;
+  photoKey?: string;
+  /** Only valid alongside photoKey. */
+  thumbnailKey?: string;
 }
 
 // ---------------------------------------------------------------------------

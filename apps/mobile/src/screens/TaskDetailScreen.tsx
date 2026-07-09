@@ -7,6 +7,7 @@ import { useTasksStore } from '../store/useTasksStore';
 import { useProjectRole } from '../hooks/useProjectRole';
 import { apiErrorMessage } from '../api/client';
 import { Button, ErrorText, Field, StatusPicker, colors } from '../components/ui';
+import { SubmissionsFeed } from '../components/SubmissionsFeed';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'TaskDetail'>;
 
@@ -123,6 +124,8 @@ export function TaskDetailScreen({ route, navigation }: Props) {
           </Text>
         </View>
       )}
+
+      <SubmissionsFeed projectId={projectId} taskId={taskId} />
     </ScrollView>
   );
 }

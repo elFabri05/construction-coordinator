@@ -29,6 +29,14 @@ jobs:
       JWT_SECRET: ci-test-secret
       JWT_REFRESH_SECRET: ci-test-refresh-secret
       REDIS_URL: redis://localhost:6379
+      # Presigning is computed locally, so dummy credentials are enough for
+      # the e2e suite — no real bucket is touched in CI.
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: auto
+      S3_BUCKET: construct-coordinator-test
+      S3_ACCESS_KEY_ID: ci-access-key
+      S3_SECRET_ACCESS_KEY: ci-secret-key
+      S3_FORCE_PATH_STYLE: 'true'
 
     steps:
       - uses: actions/checkout@v4
