@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  owner
+  superuser
+  member
+}
+
+enum MembershipStatus {
+  invited
+  active
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  // Null means "placeholder" — the user was invited by email but has not
+  // registered yet. Registration with that email claims the account.
+  passwordHash String?  @map("password_hash")
+  name         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  ownedProjects Project[]    @relation("ProjectOwner")
+  memberships   Membership[]
+  sentInvites   Membership[] @relation("InvitedBy")
+
+  @@map("users")
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  name      String
+  goal      String
+  ownerId   String   @map("owner_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  owner       User         @relation("ProjectOwner", fields: [ownerId], references: [id])
+  memberships Membership[]
+
+  @@map("projects")
+}
+
+model Membership {
+  id          String           @id @default(uuid())
+  projectId   String           @map("project_id")
+  userId      String           @map("user_id")
+  role        MembershipRole
+  status      MembershipStatus
+  invitedById String?          @map("invited_by")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User?   @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@unique([projectId, userId])
+  @@map("memberships")
+}
