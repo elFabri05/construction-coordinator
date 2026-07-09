@@ -2,8 +2,8 @@
 
 Mobile-first app for coordinating work between multiple teams on a construction
 site. **Phase 1**: authentication, projects, membership & roles, and the
-server-side permission model. (Tasks, uploads, and the AI layer come in later
-phases.)
+server-side permission model. **Phase 2**: project guidelines and tasks with
+manual ordering. (Uploads and the AI layer come in later phases.)
 
 ## Layout
 
@@ -43,11 +43,20 @@ CI (GitHub Actions) runs the same suite against a Postgres service container.
 Roles are **project-scoped** — the same user can be `owner` of one project and
 `member` of another.
 
-| Action                          | owner | superuser | member |
-| ------------------------------- | :---: | :-------: | :----: |
-| View project & members          |   ✓   |     ✓     |   ✓    |
-| Invite members                  |   ✓   |     ✓     |        |
-| Promote/demote member↔superuser |   ✓   |           |        |
+| Action                           | owner | superuser | member |
+| -------------------------------- | :---: | :-------: | :----: |
+| View project & members           |   ✓   |     ✓     |   ✓    |
+| Invite members                   |   ✓   |     ✓     |        |
+| Promote/demote member↔superuser  |   ✓   |           |        |
+| Read guideline & tasks           |   ✓   |     ✓     |   ✓    |
+| Write guideline                  |   ✓   |     ✓     |        |
+| Create/edit/reorder/delete tasks |   ✓   |     ✓     |        |
+| Change a task's status           |   ✓   |     ✓     |   ✓    |
+
+Changing task status is the **one** write the `member` role has — it's how
+field teams report progress. The status route accepts only `{ status }`, so a
+member can't smuggle a title change through it. Status transitions are
+unrestricted (any → any) for now.
 
 - Creating a project makes you its `owner` (membership created in the same
   transaction).
@@ -84,6 +93,20 @@ hides UI — it is never trusted for security.
 | GET    | `/projects/:id/members`         | any active membership |
 | POST   | `/projects/:id/invite`          | owner, superuser      |
 | PATCH  | `/projects/:id/members/:userId` | owner                 |
+| GET    | `/projects/:id/guideline`       | any active membership |
+| PUT    | `/projects/:id/guideline`       | owner, superuser      |
+| GET    | `/projects/:id/tasks?status=`   | any active membership |
+| GET    | `/projects/:id/tasks/:taskId`   | any active membership |
+| POST   | `/projects/:id/tasks`           | owner, superuser      |
+| PATCH  | `/projects/:id/tasks/reorder`   | owner, superuser      |
+| PATCH  | `/projects/:id/tasks/:taskId`   | owner, superuser      |
+| PATCH  | `/projects/:id/tasks/:taskId/status` | any active membership |
+| DELETE | `/projects/:id/tasks/:taskId`   | owner, superuser      |
+
+The guideline is one evolving document per project (upserted in place);
+version history is deliberately deferred (likely Phase 5+). Task reorder takes
+`{ taskIds: [...] }` in the new order and renumbers atomically — if any id
+doesn't belong to the project, nothing changes.
 
 Redis is provisioned in `docker-compose.yml` for later phases (queues); the API
 does not use it yet.

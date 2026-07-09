@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import type { TaskStatus } from '@construct/shared';
+import { TASK_STATUSES } from '@construct/shared';
 
 export const colors = {
   primary: '#1d6ef5',
@@ -87,6 +89,62 @@ export function RoleBadge({ role }: { role: string }) {
   );
 }
 
+export const statusColors: Record<TaskStatus, { bg: string; fg: string }> = {
+  pending: { bg: '#eef1f5', fg: '#556' },
+  in_progress: { bg: '#e6f0ff', fg: '#1d6ef5' },
+  blocked: { bg: '#fdeaea', fg: '#c22' },
+  done: { bg: '#e6f7ec', fg: '#1a7f4b' },
+};
+
+export function StatusBadge({ status }: { status: TaskStatus }) {
+  const palette = statusColors[status];
+  return (
+    <View style={[styles.badge, { backgroundColor: palette.bg }]}>
+      <Text style={[styles.badgeText, { color: palette.fg }]}>
+        {status.replace('_', ' ')}
+      </Text>
+    </View>
+  );
+}
+
+/** Tappable row of the four statuses — the member "quick action" control. */
+export function StatusPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: TaskStatus;
+  onChange: (status: TaskStatus) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={styles.statusRow}>
+      {TASK_STATUSES.map((status) => {
+        const palette = statusColors[status];
+        const active = status === value;
+        return (
+          <TouchableOpacity
+            key={status}
+            disabled={disabled || active}
+            onPress={() => onChange(status)}
+            style={[
+              styles.statusChip,
+              { backgroundColor: active ? palette.bg : 'transparent' },
+              active && { borderColor: palette.fg },
+            ]}
+          >
+            <Text
+              style={[styles.statusChipText, { color: active ? palette.fg : colors.muted }]}
+            >
+              {status.replace('_', ' ')}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   field: { marginBottom: 14 },
   label: { marginBottom: 6, color: colors.text, fontWeight: '600' },
@@ -126,4 +184,13 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   badgeText: { color: colors.primary, fontSize: 12, fontWeight: '700' },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  statusChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  statusChipText: { fontSize: 12, fontWeight: '600' },
 });

@@ -10,7 +10,7 @@ import { Button, ErrorText, Field, RoleBadge, colors } from '../components/ui';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ProjectDetail'>;
 
-export function ProjectDetailScreen({ route }: Props) {
+export function ProjectDetailScreen({ route, navigation }: Props) {
   const { projectId } = route.params;
 
   const project = useProjectsStore((s) => s.projects.find((p) => p.id === projectId));
@@ -71,6 +71,22 @@ export function ProjectDetailScreen({ route }: Props) {
         ListHeaderComponent={
           <View>
             {project ? <Text style={styles.goal}>{project.goal}</Text> : null}
+            <View style={styles.navRow}>
+              <View style={styles.navButton}>
+                <Button
+                  title="Guideline"
+                  variant="secondary"
+                  onPress={() => navigation.navigate('Guideline', { projectId })}
+                />
+              </View>
+              <View style={styles.navButton}>
+                <Button
+                  title="Tasks"
+                  variant="secondary"
+                  onPress={() => navigation.navigate('Tasks', { projectId })}
+                />
+              </View>
+            </View>
             <ErrorText>{error}</ErrorText>
             <Text style={styles.sectionTitle}>Members</Text>
           </View>
@@ -133,6 +149,8 @@ export function ProjectDetailScreen({ route }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 16 },
   goal: { color: colors.muted, marginBottom: 16 },
+  navRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  navButton: { flex: 1 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 8 },
   memberRow: {
     flexDirection: 'row',

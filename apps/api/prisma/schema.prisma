@@ -18,6 +18,13 @@ enum MembershipStatus {
   active
 }
 
+enum TaskStatus {
+  pending
+  in_progress
+  blocked
+  done
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -27,9 +34,11 @@ model User {
   name         String
   createdAt    DateTime @default(now()) @map("created_at")
 
-  ownedProjects Project[]    @relation("ProjectOwner")
-  memberships   Membership[]
-  sentInvites   Membership[] @relation("InvitedBy")
+  ownedProjects      Project[]    @relation("ProjectOwner")
+  memberships        Membership[]
+  sentInvites        Membership[] @relation("InvitedBy")
+  updatedGuidelines  Guideline[]  @relation("GuidelineUpdatedBy")
+  createdTasks       Task[]       @relation("TaskCreatedBy")
 
   @@map("users")
 }
@@ -43,8 +52,45 @@ model Project {
 
   owner       User         @relation("ProjectOwner", fields: [ownerId], references: [id])
   memberships Membership[]
+  guideline   Guideline?
+  tasks       Task[]
 
   @@map("projects")
+}
+
+// One evolving guideline document per project (projectId is unique), written
+// via upsert. Version history is a likely Phase 5+ feature — nothing here
+// should make adding a history table hard later, but it is deliberately not
+// built now.
+model Guideline {
+  id          String   @id @default(uuid())
+  projectId   String   @unique @map("project_id")
+  content     String
+  updatedById String   @map("updated_by")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  updatedBy User    @relation("GuidelineUpdatedBy", fields: [updatedById], references: [id])
+
+  @@map("guidelines")
+}
+
+model Task {
+  id            String     @id @default(uuid())
+  projectId     String     @map("project_id")
+  title         String
+  description   String     @default("")
+  status        TaskStatus @default(pending)
+  sequenceOrder Int        @map("sequence_order")
+  createdById   String     @map("created_by")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("TaskCreatedBy", fields: [createdById], references: [id])
+
+  @@index([projectId, sequenceOrder])
+  @@map("tasks")
 }
 
 model Membership {
