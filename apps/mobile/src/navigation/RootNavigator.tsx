@@ -11,6 +11,7 @@ import { GuidelineScreen } from '../screens/GuidelineScreen';
 import { TaskListScreen } from '../screens/TaskListScreen';
 import { TaskDetailScreen } from '../screens/TaskDetailScreen';
 import { CreateTaskScreen } from '../screens/CreateTaskScreen';
+import { SuggestionsScreen } from '../screens/SuggestionsScreen';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -25,6 +26,7 @@ export type AppStackParamList = {
   Tasks: { projectId: string };
   TaskDetail: { projectId: string; taskId: string };
   CreateTask: { projectId: string };
+  Suggestions: { projectId: string };
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -79,6 +81,11 @@ export function RootNavigator() {
             name="CreateTask"
             component={CreateTaskScreen}
             options={{ title: 'New task' }}
+          />
+          <AppStack.Screen
+            name="Suggestions"
+            component={SuggestionsScreen}
+            options={{ title: 'AI suggestions' }}
           />
         </AppStack.Navigator>
       ) : (

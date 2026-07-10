@@ -57,3 +57,7 @@ jobs:
 
       - name: Run e2e tests
         run: pnpm --filter api test:e2e
+
+      # Fully mocked (no Claude/Redis/DB) — safe without services.
+      - name: Run ai-worker unit tests
+        run: pnpm --filter ai-worker test

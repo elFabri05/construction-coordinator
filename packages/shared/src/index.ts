@@ -19,6 +19,30 @@ export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 export const TASK_STATUSES = ['pending', 'in_progress', 'blocked', 'done'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
+export const AI_SUGGESTION_TYPES = [
+  'resequence',
+  'rework',
+  'blocker',
+  'guideline_conflict',
+  'other',
+] as const;
+export type AiSuggestionType = (typeof AI_SUGGESTION_TYPES)[number];
+
+export const AI_SUGGESTION_STATUSES = ['pending', 'accepted', 'dismissed'] as const;
+export type AiSuggestionStatus = (typeof AI_SUGGESTION_STATUSES)[number];
+
+/** The statuses a reviewer can set — `pending` is only ever set by the worker. */
+export const AI_SUGGESTION_REVIEW_STATUSES = ['accepted', 'dismissed'] as const;
+export type AiSuggestionReviewStatus = (typeof AI_SUGGESTION_REVIEW_STATUSES)[number];
+
+/**
+ * Confidence reported by the model per suggestion. Only medium/high are
+ * persisted as AiSuggestion rows — low-confidence ones are logged and dropped
+ * to keep the review queue signal-heavy.
+ */
+export const AI_SUGGESTION_CONFIDENCES = ['low', 'medium', 'high'] as const;
+export type AiSuggestionConfidence = (typeof AI_SUGGESTION_CONFIDENCES)[number];
+
 // ---------------------------------------------------------------------------
 // Validation rules shared by backend DTOs and mobile form validation
 // ---------------------------------------------------------------------------
@@ -124,6 +148,22 @@ export interface SubmissionDto {
   user: Pick<UserDto, 'id' | 'email' | 'name'>;
 }
 
+export interface AiSuggestionDto {
+  id: string;
+  projectId: string;
+  taskId: string | null;
+  relatedTaskIds: string[];
+  triggeredBySubmissionId: string | null;
+  suggestionType: AiSuggestionType;
+  summary: string;
+  detail: string;
+  status: AiSuggestionStatus;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  reviewedBy: Pick<UserDto, 'id' | 'email' | 'name'> | null;
+}
+
 export interface UploadUrlDto {
   /** Presigned PUT URL — the client uploads directly to object storage. */
   uploadUrl: string;
@@ -202,6 +242,53 @@ export interface CreateSubmissionRequest {
   photoKey?: string;
   /** Only valid alongside photoKey. */
   thumbnailKey?: string;
+}
+
+export interface ReviewAiSuggestionRequest {
+  status: AiSuggestionReviewStatus;
+}
+
+// ---------------------------------------------------------------------------
+// Submission-review queue (shared by apps/api producer and apps/ai-worker)
+// ---------------------------------------------------------------------------
+
+export const SUBMISSION_REVIEW_QUEUE = 'submission-review';
+
+/**
+ * Payload of a submission-review job. `submissionId` is the submission that
+ * (first) triggered the job; the worker re-reads the task's recent submission
+ * history when it runs, so submissions that land inside the same debounce
+ * window are reviewed together without extra jobs.
+ */
+export interface SubmissionReviewJob {
+  submissionId: string;
+  taskId: string;
+  projectId: string;
+}
+
+export interface RedisConnectionOptions {
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+  db?: number;
+}
+
+/**
+ * Parses a REDIS_URL (redis://[user[:pass]@]host[:port][/db]) into the
+ * host/port options shape BullMQ and ioredis expect.
+ */
+export function parseRedisUrl(url: string): RedisConnectionOptions {
+  const parsed = new URL(url);
+  const options: RedisConnectionOptions = {
+    host: parsed.hostname || 'localhost',
+    port: parsed.port ? Number(parsed.port) : 6379,
+  };
+  if (parsed.username) options.username = decodeURIComponent(parsed.username);
+  if (parsed.password) options.password = decodeURIComponent(parsed.password);
+  const db = parsed.pathname.replace(/^\//, '');
+  if (db) options.db = Number(db);
+  return options;
 }
 
 // ---------------------------------------------------------------------------

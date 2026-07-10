@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AssignableRole, MemberDto, isValidEmail } from '@construct/shared';
 import { AppStackParamList } from '../navigation/RootNavigator';
 import { useProjectsStore } from '../store/useProjectsStore';
+import { useSuggestionsStore } from '../store/useSuggestionsStore';
 import { useProjectRole } from '../hooks/useProjectRole';
 import { apiErrorMessage } from '../api/client';
 import { Button, ErrorText, Field, RoleBadge, colors } from '../components/ui';
@@ -22,7 +23,13 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   // UI convenience only — server-side guards are the real enforcement.
   const myRole = useProjectRole(projectId);
   const canInvite = myRole === 'owner' || myRole === 'superuser';
+  const canReviewSuggestions = canInvite;
   const isOwner = myRole === 'owner';
+
+  const pendingSuggestions = useSuggestionsStore(
+    (s) => s.pendingCountByProject[projectId],
+  );
+  const fetchPendingSuggestions = useSuggestionsStore((s) => s.fetchPendingSuggestions);
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AssignableRole>('member');
@@ -33,6 +40,14 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     fetchMembers(projectId).catch((err) => setError(apiErrorMessage(err)));
   }, [projectId, fetchMembers]);
+
+  // Lightweight badge refresh on screen mount — no polling in this phase.
+  // Silently ignored on failure (and members never fetch: the API would 403).
+  useEffect(() => {
+    if (canReviewSuggestions) {
+      fetchPendingSuggestions(projectId).catch(() => undefined);
+    }
+  }, [projectId, canReviewSuggestions, fetchPendingSuggestions]);
 
   const invite = async () => {
     setError(null);
@@ -87,6 +102,19 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
                 />
               </View>
             </View>
+            {canReviewSuggestions ? (
+              <View style={styles.suggestionsNav}>
+                <Button
+                  title={
+                    pendingSuggestions
+                      ? `AI suggestions (${pendingSuggestions} pending)`
+                      : 'AI suggestions'
+                  }
+                  variant="secondary"
+                  onPress={() => navigation.navigate('Suggestions', { projectId })}
+                />
+              </View>
+            ) : null}
             <ErrorText>{error}</ErrorText>
             <Text style={styles.sectionTitle}>Members</Text>
           </View>
@@ -149,8 +177,9 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 16 },
   goal: { color: colors.muted, marginBottom: 16 },
-  navRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  navRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   navButton: { flex: 1 },
+  suggestionsNav: { marginBottom: 20 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 8 },
   memberRow: {
     flexDirection: 'row',

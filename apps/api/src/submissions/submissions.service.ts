@@ -14,6 +14,7 @@ import {
 } from '@construct/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { SubmissionReviewQueueService } from '../queue/submission-review-queue.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 
 type SubmissionWithUser = Submission & {
@@ -35,6 +36,7 @@ export class SubmissionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly reviewQueue: SubmissionReviewQueueService,
   ) {}
 
   async requestUploadUrl(
@@ -86,6 +88,14 @@ export class SubmissionsService {
         thumbnailKey: dto.thumbnailKey ?? null,
       },
       include: userInclude,
+    });
+
+    // Fire-and-forget: the AI review job must never delay or fail the upload
+    // response. enqueueSubmissionReview logs failures internally.
+    void this.reviewQueue.enqueueSubmissionReview({
+      submissionId: submission.id,
+      taskId,
+      projectId,
     });
 
     return this.toDto(submission);

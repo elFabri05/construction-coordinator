@@ -8,8 +8,10 @@
   },
   "scripts": {
     "dev:api": "pnpm --filter api start:dev",
+    "dev:worker": "pnpm --filter ai-worker start:dev",
     "dev:mobile": "pnpm --filter mobile start",
     "build": "pnpm -r build",
-    "test:e2e": "pnpm --filter api test:e2e"
+    "test:e2e": "pnpm --filter api test:e2e",
+    "test:worker": "pnpm --filter ai-worker test"
   }
 }
