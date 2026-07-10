@@ -9,6 +9,7 @@ import {
 import { PromptBuilderService } from '../prompt-builder/prompt-builder.service';
 import { ClaudeClientService } from '../claude-client/claude-client.service';
 import { ResultWriterService } from '../result-writer/result-writer.service';
+import { OutboundService } from '../outbound/outbound.service';
 
 /**
  * Consumes the submission-review queue. Batching happened on the producer
@@ -27,6 +28,7 @@ export class SubmissionReviewWorker implements OnModuleInit, OnModuleDestroy {
     private readonly promptBuilder: PromptBuilderService,
     private readonly claude: ClaudeClientService,
     private readonly resultWriter: ResultWriterService,
+    private readonly outbound: OutboundService,
   ) {}
 
   onModuleInit(): void {
@@ -71,6 +73,13 @@ export class SubmissionReviewWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    await this.resultWriter.write(job.data, suggestions, context.validTaskIds);
+    const created = await this.resultWriter.write(
+      job.data,
+      suggestions,
+      context.validTaskIds,
+    );
+    // Realtime event (via the api's Redis bridge) + push jobs. Fire-and-
+    // forget inside: the suggestions are already persisted either way.
+    await this.outbound.announceSuggestions(created);
   }
 }

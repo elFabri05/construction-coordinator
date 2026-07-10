@@ -49,6 +49,8 @@ interface SubmissionsState {
 
   hydrateQueue: () => Promise<void>;
   fetchSubmissions: (projectId: string, taskId: string) => Promise<void>;
+  /** Socket event handler — prepend a live submission to the feed. */
+  applyRealtimeSubmission: (submission: SubmissionDto) => void;
   addSubmission: (
     projectId: string,
     taskId: string,
@@ -116,6 +118,29 @@ export const useSubmissionsStore = create<SubmissionsState>((set, get) => {
 
     async hydrateQueue() {
       setPendingFromQueue(await loadQueue());
+    },
+
+    applyRealtimeSubmission(submission) {
+      set((state) => {
+        const existing = state.submissionsByTask[submission.taskId];
+        if (!existing) {
+          return state; // feed not loaded — it'll be fetched fresh when opened
+        }
+        // Dedupe: our own submissions come back over the socket too, and may
+        // already be in the list from the post-upload refetch. (Optimistic
+        // offline items live in pendingByTask under a local id and are
+        // removed by the queue drain, so id-dedupe here is sufficient.)
+        if (existing.some((s) => s.id === submission.id)) {
+          return state;
+        }
+        return {
+          ...state,
+          submissionsByTask: {
+            ...state.submissionsByTask,
+            [submission.taskId]: [submission, ...existing], // feed is newest-first
+          },
+        };
+      });
     },
 
     async fetchSubmissions(projectId, taskId) {

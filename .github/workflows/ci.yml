@@ -58,6 +58,10 @@ jobs:
       - name: Run e2e tests
         run: pnpm --filter api test:e2e
 
+      # Realtime gateway room-join + role-filter logic (fully mocked).
+      - name: Run api unit tests
+        run: pnpm --filter api test
+
       # Fully mocked (no Claude/Redis/DB) — safe without services.
       - name: Run ai-worker unit tests
         run: pnpm --filter ai-worker test

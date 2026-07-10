@@ -13,6 +13,8 @@ interface SuggestionsState {
   pendingCountByProject: Record<string, number>;
 
   fetchPendingSuggestions: (projectId: string) => Promise<void>;
+  /** Socket event handler — bump the badge and prepend if the list is loaded. */
+  applyRealtimeSuggestion: (suggestion: AiSuggestionDto) => void;
   reviewSuggestion: (
     projectId: string,
     suggestionId: string,
@@ -33,6 +35,30 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
       suggestionsByProject: { ...state.suggestionsByProject, [projectId]: data },
       pendingCountByProject: { ...state.pendingCountByProject, [projectId]: data.length },
     }));
+  },
+
+  applyRealtimeSuggestion(suggestion) {
+    // The server only sends this event to owner/superuser sockets.
+    set((state) => {
+      const projectId = suggestion.projectId;
+      const existing = state.suggestionsByProject[projectId];
+      if (existing?.some((s) => s.id === suggestion.id)) {
+        return state;
+      }
+      const list = existing ? [suggestion, ...existing] : undefined;
+      return {
+        ...state,
+        ...(list
+          ? { suggestionsByProject: { ...state.suggestionsByProject, [projectId]: list } }
+          : {}),
+        pendingCountByProject: {
+          ...state.pendingCountByProject,
+          [projectId]: list
+            ? list.length
+            : (state.pendingCountByProject[projectId] ?? 0) + 1,
+        },
+      };
+    });
   },
 
   async reviewSuggestion(projectId, suggestionId, status) {

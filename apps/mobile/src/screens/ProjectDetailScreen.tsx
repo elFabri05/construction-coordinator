@@ -6,6 +6,7 @@ import { AppStackParamList } from '../navigation/RootNavigator';
 import { useProjectsStore } from '../store/useProjectsStore';
 import { useSuggestionsStore } from '../store/useSuggestionsStore';
 import { useProjectRole } from '../hooks/useProjectRole';
+import { maybeAskForPushPermissions } from '../notifications/pushNotifications';
 import { apiErrorMessage } from '../api/client';
 import { Button, ErrorText, Field, RoleBadge, colors } from '../components/ui';
 
@@ -40,6 +41,12 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     fetchMembers(projectId).catch((err) => setError(apiErrorMessage(err)));
   }, [projectId, fetchMembers]);
+
+  // Contextual permission priming: the user just opened a project, so the
+  // value of "get notified about this project" is clear. Asks only once ever.
+  useEffect(() => {
+    void maybeAskForPushPermissions();
+  }, []);
 
   // Lightweight badge refresh on screen mount — no polling in this phase.
   // Silently ignored on failure (and members never fetch: the API would 403).

@@ -15,6 +15,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { SubmissionReviewQueueService } from '../queue/submission-review-queue.service';
+import { RealtimeService } from '../realtime/realtime.service';
+import { NotificationsQueueService } from '../notifications/notifications-queue.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 
 type SubmissionWithUser = Submission & {
@@ -37,6 +39,8 @@ export class SubmissionsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly reviewQueue: SubmissionReviewQueueService,
+    private readonly realtime: RealtimeService,
+    private readonly notifications: NotificationsQueueService,
   ) {}
 
   async requestUploadUrl(
@@ -90,15 +94,25 @@ export class SubmissionsService {
       include: userInclude,
     });
 
-    // Fire-and-forget: the AI review job must never delay or fail the upload
-    // response. enqueueSubmissionReview logs failures internally.
+    // Fire-and-forget side effects: none of these may delay or fail the
+    // upload response (each logs failures internally).
     void this.reviewQueue.enqueueSubmissionReview({
       submissionId: submission.id,
       taskId,
       projectId,
     });
+    void this.notifications.enqueue({
+      kind: 'submission',
+      projectId,
+      taskId,
+      submissionId: submission.id,
+      authorId: userId,
+    });
 
-    return this.toDto(submission);
+    const result = await this.toDto(submission);
+    // Foreground path: sockets in the project room see it instantly.
+    this.realtime.emitSubmissionCreated(projectId, result);
+    return result;
   }
 
   /** Newest-first, soft-deleted rows excluded, signed read URLs resolved. */

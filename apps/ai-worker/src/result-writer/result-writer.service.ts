@@ -1,9 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SubmissionReviewJob } from '@construct/shared';
+import { AiSuggestion } from '@prisma/client';
+import { AiSuggestionDto, SubmissionReviewJob } from '@construct/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { ParsedSuggestion } from '../claude-client/suggestion-parser';
 
-/** Persists parsed suggestions as pending AiSuggestion rows. */
+/**
+ * Persists parsed suggestions as pending AiSuggestion rows and returns them
+ * as DTOs so the caller can announce them (realtime + push).
+ */
 @Injectable()
 export class ResultWriterService {
   private readonly logger = new Logger(ResultWriterService.name);
@@ -14,13 +18,13 @@ export class ResultWriterService {
     job: SubmissionReviewJob,
     suggestions: ParsedSuggestion[],
     validTaskIds: string[],
-  ): Promise<void> {
+  ): Promise<AiSuggestionDto[]> {
     if (suggestions.length === 0) {
-      return;
+      return [];
     }
     const valid = new Set(validTaskIds);
 
-    await this.prisma.aiSuggestion.createMany({
+    const created = await this.prisma.aiSuggestion.createManyAndReturn({
       data: suggestions.map((s) => ({
         projectId: job.projectId,
         taskId: job.taskId,
@@ -34,7 +38,26 @@ export class ResultWriterService {
       })),
     });
     this.logger.log(
-      `Persisted ${suggestions.length} suggestion(s) for task ${job.taskId}`,
+      `Persisted ${created.length} suggestion(s) for task ${job.taskId}`,
     );
+    return created.map((row) => this.toDto(row));
+  }
+
+  private toDto(row: AiSuggestion): AiSuggestionDto {
+    return {
+      id: row.id,
+      projectId: row.projectId,
+      taskId: row.taskId,
+      relatedTaskIds: row.relatedTaskIds,
+      triggeredBySubmissionId: row.triggeredBySubmissionId,
+      suggestionType: row.suggestionType,
+      summary: row.summary,
+      detail: row.detail,
+      status: row.status,
+      reviewedById: null,
+      reviewedAt: null,
+      createdAt: row.createdAt.toISOString(),
+      reviewedBy: null,
+    };
   }
 }

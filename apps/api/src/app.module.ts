@@ -11,6 +11,9 @@ import { StorageModule } from './storage/storage.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { QueueModule } from './queue/queue.module';
 import { AiSuggestionsModule } from './ai-suggestions/ai-suggestions.module';
+import { RealtimeModule } from './realtime/realtime.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -26,6 +29,9 @@ import { AiSuggestionsModule } from './ai-suggestions/ai-suggestions.module';
     SubmissionsModule,
     QueueModule,
     AiSuggestionsModule,
+    RealtimeModule,
+    NotificationsModule,
+    EmailModule,
   ],
 })
 export class AppModule {}

@@ -19,6 +19,8 @@ interface TasksState {
   guidelineByProject: Record<string, GuidelineDto | null>;
 
   fetchTasks: (projectId: string, status?: TaskStatus) => Promise<void>;
+  /** Socket event handler — update (or insert) a task in place, keeping sequence order. */
+  applyRealtimeTask: (task: TaskDto) => void;
   createTask: (projectId: string, body: CreateTaskRequest) => Promise<TaskDto>;
   updateTask: (projectId: string, taskId: string, body: UpdateTaskRequest) => Promise<void>;
   updateTaskStatus: (projectId: string, taskId: string, status: TaskStatus) => Promise<void>;
@@ -63,6 +65,23 @@ export const useTasksStore = create<TasksState>((set, get) => {
         params: status ? { status } : undefined,
       });
       setProjectTasks(projectId, data);
+    },
+
+    applyRealtimeTask(task) {
+      set((state) => {
+        const existing = state.tasksByProject[task.projectId];
+        if (!existing) {
+          return state; // list not loaded — fetched fresh when opened
+        }
+        const replaced = existing.some((t) => t.id === task.id)
+          ? existing.map((t) => (t.id === task.id ? task : t))
+          : [...existing, task];
+        replaced.sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+        return {
+          ...state,
+          tasksByProject: { ...state.tasksByProject, [task.projectId]: replaced },
+        };
+      });
     },
 
     async createTask(projectId, body) {

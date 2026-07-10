@@ -11,7 +11,26 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand"
+    "test": "jest",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --forceExit"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/../tsconfig.json"
+        }
+      ]
+    },
+    "testEnvironment": "node"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.700.0",
@@ -23,15 +42,19 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.15",
+    "@nestjs/platform-socket.io": "^10.4.15",
+    "@nestjs/websockets": "^10.4.15",
     "@prisma/client": "^6.5.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.80.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "expo-server-sdk": "^3.15.0",
     "ioredis": "5.10.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
+    "resend": "^6.17.2",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
@@ -46,6 +69,7 @@
     "@types/supertest": "^6.0.2",
     "jest": "^29.7.0",
     "prisma": "^6.5.0",
+    "socket.io-client": "^4.8.3",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",

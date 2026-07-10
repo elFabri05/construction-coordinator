@@ -55,6 +55,7 @@ model User {
   createdTasks       Task[]       @relation("TaskCreatedBy")
   submissions        Submission[]
   reviewedSuggestions AiSuggestion[] @relation("AiSuggestionReviewedBy")
+  deviceTokens       DeviceToken[]
 
   @@map("users")
 }
@@ -175,6 +176,23 @@ model AiSuggestion {
 
   @@index([projectId, status, createdAt])
   @@map("ai_suggestions")
+}
+
+// One row per (device, user): tokens are unique per device, and a device
+// changing hands (logout/login as someone else) reassigns the token to the
+// new user via upsert. Rows for dead tokens are deleted when Expo reports
+// DeviceNotRegistered.
+model DeviceToken {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  expoPushToken String   @unique @map("expo_push_token")
+  platform      String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }
 
 model Membership {

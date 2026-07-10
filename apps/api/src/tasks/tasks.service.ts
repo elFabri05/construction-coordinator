@@ -6,12 +6,18 @@ import {
 import { Prisma, Task } from '@prisma/client';
 import { TaskDto, TaskStatus } from '@construct/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
+import { NotificationsQueueService } from '../notifications/notifications-queue.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeService,
+    private readonly notifications: NotificationsQueueService,
+  ) {}
 
   async list(projectId: string, status?: TaskStatus): Promise<TaskDto[]> {
     const tasks = await this.prisma.task.findMany({
@@ -64,7 +70,9 @@ export class TasksService {
         ...(dto.sequenceOrder !== undefined ? { sequenceOrder: dto.sequenceOrder } : {}),
       },
     });
-    return this.toDto(task);
+    const result = this.toDto(task);
+    this.realtime.emitTaskUpdated(projectId, result);
+    return result;
   }
 
   /**
@@ -77,12 +85,25 @@ export class TasksService {
     taskId: string,
     status: TaskStatus,
   ): Promise<TaskDto> {
-    await this.findInProject(projectId, taskId);
+    const previous = await this.findInProject(projectId, taskId);
     const task = await this.prisma.task.update({
       where: { id: taskId },
       data: { status },
     });
-    return this.toDto(task);
+    const result = this.toDto(task);
+    this.realtime.emitTaskUpdated(projectId, result);
+
+    // Push to all active project members on a fresh block (not on re-saving
+    // an already-blocked task). Fire-and-forget — never delays the response.
+    if (status === 'blocked' && previous.status !== 'blocked') {
+      void this.notifications.enqueue({
+        kind: 'task-blocked',
+        projectId,
+        taskId,
+        taskTitle: task.title,
+      });
+    }
+    return result;
   }
 
   /**
@@ -118,7 +139,13 @@ export class TasksService {
       throw error;
     }
 
-    return this.list(projectId);
+    const tasks = await this.list(projectId);
+    // Every task potentially changed position — emit each so open task
+    // lists resort live.
+    for (const task of tasks) {
+      this.realtime.emitTaskUpdated(projectId, task);
+    }
+    return tasks;
   }
 
   async delete(projectId: string, taskId: string): Promise<void> {

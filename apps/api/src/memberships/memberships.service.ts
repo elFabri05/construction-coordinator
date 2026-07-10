@@ -2,13 +2,13 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Membership, Prisma, User } from '@prisma/client';
 import { AssignableRole, MemberDto } from '@construct/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { NotificationsQueueService } from '../notifications/notifications-queue.service';
 
 type MembershipWithUser = Membership & {
   user: Pick<User, 'id' | 'email' | 'name'>;
@@ -20,11 +20,10 @@ const memberInclude = {
 
 @Injectable()
 export class MembershipsService {
-  private readonly logger = new Logger(MembershipsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
+    private readonly notifications: NotificationsQueueService,
   ) {}
 
   /**
@@ -69,10 +68,16 @@ export class MembershipsService {
       throw error;
     }
 
-    // TODO(phase-2+): send an actual invite email. Stub for now.
-    this.logger.log(
-      `[email-stub] Invite email would be sent to ${email} for project ${projectId} (role: ${role}, status: ${status})`,
-    );
+    // Real invite email (+ push if they already have the app), queued so the
+    // invite response never waits on the email provider. Fire-and-forget:
+    // enqueue() logs failures internally and never throws.
+    void this.notifications.enqueue({
+      kind: 'invite',
+      projectId,
+      invitedUserId: user.id,
+      inviterId,
+      email,
+    });
 
     return this.toDto(membership);
   }

@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -21,7 +23,9 @@
           "photosPermission": "Allow access to attach site photos to tasks.",
           "cameraPermission": "Allow camera access to photograph work progress."
         }
-      ]
-    ]
+      ],
+      "expo-notifications"
+    ],
+    "scheme": "constructcoordinator"
   }
 }

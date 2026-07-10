@@ -266,6 +266,115 @@ export interface SubmissionReviewJob {
   projectId: string;
 }
 
+// ---------------------------------------------------------------------------
+// Realtime (Socket.IO) events — server -> client
+// ---------------------------------------------------------------------------
+
+export const WS_EVENTS = {
+  /** Payload: SubmissionDto (photo URLs already signed). Room: whole project. */
+  submissionCreated: 'submission:created',
+  /** Payload: AiSuggestionDto. Room: project, but delivered only to owner/superuser sockets. */
+  suggestionCreated: 'suggestion:created',
+  /** Payload: TaskDto (full task after the change). Room: whole project. */
+  taskUpdated: 'task:updated',
+} as const;
+
+export function projectRoom(projectId: string): string {
+  return `project:${projectId}`;
+}
+
+/**
+ * Redis pub/sub channel bridging apps/ai-worker -> apps/api gateway. The
+ * worker can't touch the Socket.IO server directly, so it publishes here and
+ * the api re-broadcasts to the right room (with role filtering).
+ */
+export const REALTIME_CHANNEL = 'realtime-events';
+
+export interface SuggestionCreatedBridgeMessage {
+  event: typeof WS_EVENTS.suggestionCreated;
+  projectId: string;
+  suggestion: AiSuggestionDto;
+}
+
+export type RealtimeBridgeMessage = SuggestionCreatedBridgeMessage;
+
+// ---------------------------------------------------------------------------
+// Notifications queue (email + push side effects, consumed by apps/api)
+// ---------------------------------------------------------------------------
+
+export const NOTIFICATIONS_QUEUE = 'notifications';
+
+/** Email (+ push if they already have the app) for a fresh invite. */
+export interface InviteNotificationJob {
+  kind: 'invite';
+  projectId: string;
+  invitedUserId: string;
+  inviterId: string;
+  email: string;
+}
+
+/** Push to owner/superuser devices — role resolved at send time. */
+export interface SuggestionNotificationJob {
+  kind: 'suggestion';
+  projectId: string;
+  suggestionId: string;
+  summary: string;
+}
+
+/** Push to all active project members. */
+export interface TaskBlockedNotificationJob {
+  kind: 'task-blocked';
+  projectId: string;
+  taskId: string;
+  taskTitle: string;
+}
+
+/** Push to all active project members except the author (background/closed-app path; foreground gets the socket event). */
+export interface SubmissionNotificationJob {
+  kind: 'submission';
+  projectId: string;
+  taskId: string;
+  submissionId: string;
+  authorId: string;
+}
+
+export type NotificationJobData =
+  | InviteNotificationJob
+  | SuggestionNotificationJob
+  | TaskBlockedNotificationJob
+  | SubmissionNotificationJob;
+
+// ---------------------------------------------------------------------------
+// Device tokens (push notifications)
+// ---------------------------------------------------------------------------
+
+export const DEVICE_PLATFORMS = ['ios', 'android'] as const;
+export type DevicePlatform = (typeof DEVICE_PLATFORMS)[number];
+
+export interface RegisterDeviceTokenRequest {
+  expoPushToken: string;
+  platform: DevicePlatform;
+}
+
+export interface DeviceTokenDto {
+  id: string;
+  userId: string;
+  expoPushToken: string;
+  platform: string;
+  createdAt: string;
+}
+
+/**
+ * Payload attached to every push notification; the app uses it to deep-link
+ * on tap. `type` decides the target screen.
+ */
+export interface PushNotificationData {
+  type: 'invite' | 'suggestion' | 'task-blocked' | 'submission';
+  projectId: string;
+  projectName?: string;
+  taskId?: string;
+}
+
 export interface RedisConnectionOptions {
   host: string;
   port: number;

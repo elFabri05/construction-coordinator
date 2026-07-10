@@ -11,6 +11,11 @@ export function setAccessToken(token: string | null): void {
   accessToken = token;
 }
 
+/** Read by the socket client so reconnects always use the freshest token. */
+export function getAccessToken(): string | null {
+  return accessToken;
+}
+
 /** Registered by the auth store; called once on a 401 to obtain a new token. */
 export function setRefreshHandler(fn: () => Promise<string | null>): void {
   refreshHandler = fn;

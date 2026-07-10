@@ -5,6 +5,7 @@ import { StorageModule } from './storage/storage.module';
 import { PromptBuilderModule } from './prompt-builder/prompt-builder.module';
 import { ClaudeClientModule } from './claude-client/claude-client.module';
 import { ResultWriterModule } from './result-writer/result-writer.module';
+import { OutboundModule } from './outbound/outbound.module';
 import { QueueModule } from './queue/queue.module';
 
 @Module({
@@ -15,6 +16,7 @@ import { QueueModule } from './queue/queue.module';
     PromptBuilderModule,
     ClaudeClientModule,
     ResultWriterModule,
+    OutboundModule,
     QueueModule,
   ],
 })

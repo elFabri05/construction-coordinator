@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { User } from '@prisma/client';
-import { UserDto } from '@construct/shared';
+import { DeviceTokenDto, RegisterDeviceTokenRequest, UserDto } from '@construct/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -28,6 +28,25 @@ export class UsersService {
         name: email.split('@')[0],
       },
     });
+  }
+
+  /** Upsert on the token value: re-registration and device hand-over are both no-drama. */
+  async registerDeviceToken(
+    userId: string,
+    dto: RegisterDeviceTokenRequest,
+  ): Promise<DeviceTokenDto> {
+    const token = await this.prisma.deviceToken.upsert({
+      where: { expoPushToken: dto.expoPushToken },
+      update: { userId, platform: dto.platform },
+      create: { userId, expoPushToken: dto.expoPushToken, platform: dto.platform },
+    });
+    return {
+      id: token.id,
+      userId: token.userId,
+      expoPushToken: token.expoPushToken,
+      platform: token.platform,
+      createdAt: token.createdAt.toISOString(),
+    };
   }
 
   /** Strips passwordHash and serializes dates for API responses. */
